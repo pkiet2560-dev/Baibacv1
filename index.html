@@ -3,198 +3,230 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tiến Lên Multi-Mode Online</title>
+    <title>Tiến Lên Pro Online</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        :root { --primary: #27ae60; --secondary: #2980b9; --bg: #1a472a; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; align-items: center; }
-        .setup-screen { padding: 20px; text-align: center; max-width: 400px; background: rgba(0,0,0,0.4); border-radius: 15px; margin-top: 50px; }
+        :root { --primary: #2ecc71; --danger: #e74c3c; --bg: #0f2027; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); color: white; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; }
+        .setup-screen { padding: 30px; text-align: center; background: rgba(0,0,0,0.8); border-radius: 20px; margin-top: 50px; border: 1px solid #333; }
         
-        /* Bài viết */
-        .card { width: 60px; height: 90px; background: white; color: black; border-radius: 5px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; border: 2px solid transparent; margin: 2px; user-select: none; position: relative; transition: transform 0.2s; }
-        .card.red { color: red; }
-        .card.selected { border-color: #f1c40f; transform: translateY(-15px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        .card { width: 55px; height: 80px; background: white; color: black; border-radius: 6px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; margin: 2px; position: relative; border: 2px solid #ccc; transition: 0.2s; box-shadow: 2px 2px 5px rgba(0,0,0,0.3); }
+        .card.red { color: #d63031; }
+        .card.selected { transform: translateY(-20px); border-color: #f1c40f; box-shadow: 0 0 15px #f1c40f; }
+        .card.disabled { opacity: 0.5; cursor: not-allowed; }
+
+        .game-container { display: none; width: 100%; height: 100vh; flex-direction: column; }
+        .table-area { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; background: radial-gradient(circle, #1a472a 0%, #0f2027 100%); }
+        .hand-area { background: rgba(0,0,0,0.6); padding: 10px; min-height: 180px; text-align: center; border-top: 2px solid #444; }
         
-        .game-container { display: none; width: 100%; max-width: 800px; height: 100vh; flex-direction: column; justify-content: space-between; }
-        .table-area { flex-grow: 1; border: 2px dashed rgba(255,255,255,0.2); border-radius: 50%; margin: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
-        .hand-area { background: rgba(0,0,0,0.5); padding: 15px; width: 100%; box-sizing: border-box; text-align: center; }
+        .btn { padding: 12px 25px; border: none; border-radius: 5px; font-weight: bold; cursor: pointer; margin: 5px; text-transform: uppercase; }
+        .btn-play { background: var(--primary); color: white; }
+        .btn-skip { background: #7f8c8d; color: white; }
         
-        .controls { margin-top: 10px; display: flex; justify-content: center; gap: 10px; }
-        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
-        .btn-play { background: #e67e22; color: white; }
-        .btn-skip { background: #95a5a6; color: white; }
-        
-        .mode-tag { position: absolute; top: 10px; right: 10px; background: #f1c40f; color: black; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
-        .id-text { font-size: 12px; color: #ccc; word-break: break-all; margin: 10px 0; }
+        .info-bar { position: absolute; top: 10px; width: 90%; display: flex; justify-content: space-between; font-size: 14px; }
+        #last-move { display: flex; gap: 5px; min-height: 80px; align-items: center; padding: 10px; background: rgba(255,255,255,0.05); border-radius: 10px; }
     </style>
 </head>
 <body>
 
 <div id="setup" class="setup-screen">
-    <h2>TIẾN LÊN KẾT NỐI</h2>
-    <div id="host-view">
-        <button class="btn-play" style="background: var(--primary)" onclick="initPeer(true)">TẠO PHÒNG</button>
-        <p class="id-text" id="my-id"></p>
-        <div id="mode-select" style="margin-top:10px">
-            <label><input type="radio" name="rule" value="MN" checked> Miền Nam</label>
-            <label><input type="radio" name="rule" value="MB"> Miền Bắc</label>
-            <br><br>
-            <label><input type="radio" name="gameMode" value="ALL" checked> Chia hết (13 lá)</label>
-            <label><input type="radio" name="gameMode" value="9"> Chia 9 (Bốc bài)</label>
+    <h1>TIẾN LÊN PRO</h1>
+    <div id="host-controls">
+        <button class="btn btn-play" onclick="initPeer(true)">Tạo Phòng</button>
+        <p id="my-id" style="color: #f1c40f; font-family: monospace;"></p>
+        <div style="margin: 15px 0;">
+            Chế độ: 
+            <select id="gameMode" style="padding: 5px;">
+                <option value="ALL">Chia hết (13 lá)</option>
+                <option value="9">Chia 9 (Bốc bài)</option>
+            </select>
         </div>
     </div>
-    <hr>
-    <div id="join-view">
-        <input type="text" id="target-id" placeholder="Nhập ID phòng bạn bè">
-        <button class="btn-play" style="background: var(--secondary)" onclick="initPeer(false)">VÀO PHÒNG</button>
-    </div>
+    <hr style="border: 0.5px solid #333;">
+    <input type="text" id="target-id" placeholder="Dán ID bạn bè" style="padding: 10px; width: 200px; border-radius: 5px;">
+    <button class="btn" style="background: #3498db; color: white;" onclick="initPeer(false)">Vào Phòng</button>
 </div>
 
 <div id="game" class="game-container">
-    <div class="table-area" id="table">
-        <div id="room-mode" class="mode-tag">Đang đợi...</div>
+    <div class="table-area">
+        <div class="info-bar">
+            <div id="turn-info">Lượt: Đang chờ...</div>
+            <div id="deck-info">Nọc: 0 lá</div>
+        </div>
         <div id="last-move"></div>
+        <p style="color: #888; font-size: 12px;">BÀN BÀI</p>
     </div>
     
     <div class="hand-area">
         <div id="my-hand"></div>
-        <div class="controls">
-            <button id="btn-draw" class="btn-skip" style="display:none" onclick="drawCard()">BỐC BÀI</button>
-            <button class="btn-skip" onclick="skipTurn()">BỎ LƯỢT</button>
-            <button class="btn-play" onclick="playSelected()">ĐÁNH BÀI</button>
+        <div style="margin-top: 15px;">
+            <button id="btn-draw" class="btn" style="background: #f39c12; display:none;" onclick="drawCard()">Bốc bài</button>
+            <button class="btn btn-skip" onclick="skipTurn()">Bỏ lượt</button>
+            <button class="btn btn-play" onclick="playSelected()">Đánh bài</button>
         </div>
     </div>
 </div>
 
 <script>
-    let peer, conn, myId, connections = [];
-    let myHand = [];
-    let selectedCards = [];
-    let isHost = false;
-    let gameSettings = { rule: 'MN', mode: 'ALL' };
-
-    const SUITS = ['♠', '♣', '♦', '♥'];
+    let peer, conn, myHand = [], selectedIndexes = [], isHost = false;
+    let deck = [], tableCards = [], currentTurn = false, mode = 'ALL';
+    
     const VALUES = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
+    const SUITS = ['♠', '♣', '♦', '♥']; // Thứ tự mạnh dần
 
-    // 1. Khởi tạo Peer
     function initPeer(host) {
         isHost = host;
         peer = new Peer();
-        
         peer.on('open', id => {
-            myId = id;
-            if(isHost) {
-                document.getElementById('my-id').innerText = "ID PHÒNG: " + id;
-                gameSettings.rule = document.querySelector('input[name="rule"]:checked').value;
-                gameSettings.mode = document.querySelector('input[name="gameMode"]:checked').value;
-            } else {
-                const target = document.getElementById('target-id').value;
-                connectToHost(target);
-            }
+            if(host) document.getElementById('my-id').innerText = "ID: " + id;
+            else connect(document.getElementById('target-id').value);
         });
-
-        peer.on('connection', c => {
-            conn = c;
-            handleConnection(c);
-        });
+        peer.on('connection', c => { conn = c; setupConn(); });
     }
 
-    function connectToHost(id) {
-        conn = peer.connect(id);
-        handleConnection(conn);
-    }
+    function connect(id) { conn = peer.connect(id); setupConn(); }
 
-    function handleConnection(c) {
-        c.on('open', () => {
+    function setupConn() {
+        conn.on('open', () => {
             document.getElementById('setup').style.display = 'none';
             document.getElementById('game').style.display = 'flex';
-            document.getElementById('room-mode').innerText = `${gameSettings.rule} | ${gameSettings.mode == 'ALL' ? 'Chia hết' : 'Chia 9'}`;
-            
-            if(isHost) startGame();
+            if(isHost) prepareGame();
         });
-
-        c.on('data', data => {
-            if(data.type === 'START') {
-                myHand = data.hand;
-                gameSettings = data.settings;
-                renderHand();
-            }
-            if(data.type === 'PLAY') {
-                showLastMove(data.cards);
-            }
-        });
+        conn.on('data', data => handleData(data));
     }
 
-    // 2. Logic Game
-    function startGame() {
-        // Tạo bộ bài đơn giản
-        let deck = [];
-        for(let v of VALUES) for(let s of SUITS) deck.push({v, s, color: (s === '♦' || s === '♥') ? 'red' : ''});
+    function prepareGame() {
+        mode = document.getElementById('gameMode').value;
+        // Tạo bộ bài 52 lá duy nhất
+        deck = [];
+        VALUES.forEach((v, vi) => {
+            SUITS.forEach((s, si) => {
+                deck.push({ v, s, val: vi, suit: si, color: si > 1 ? 'red' : '' });
+            });
+        });
         deck.sort(() => Math.random() - 0.5);
 
-        // Chia bài
-        const count = gameSettings.mode === 'ALL' ? 13 : 9;
-        const hostHand = deck.splice(0, count);
-        const guestHand = deck.splice(0, count);
+        const count = mode === 'ALL' ? 13 : 9;
+        myHand = deck.splice(0, count).sort((a,b) => a.val - b.val || a.suit - b.suit);
+        let guestHand = deck.splice(0, count).sort((a,b) => a.val - b.val || a.suit - b.suit);
 
-        myHand = hostHand;
-        renderHand();
-
-        conn.send({ type: 'START', hand: guestHand, settings: gameSettings });
-        if(gameSettings.mode === '9') document.getElementById('btn-draw').style.display = 'inline-block';
+        currentTurn = true;
+        updateUI();
+        conn.send({ type: 'START', hand: guestHand, deck, mode, turn: false });
     }
 
-    function renderHand() {
-        const container = document.getElementById('my-hand');
-        container.innerHTML = '';
-        myHand.forEach((card, index) => {
-            const div = document.createElement('div');
-            div.className = `card ${card.color} ${selectedCards.includes(index) ? 'selected' : ''}`;
-            div.innerHTML = `<div>${card.v}</div><div>${card.s}</div>`;
-            div.onclick = () => toggleSelect(index);
-            container.appendChild(div);
-        });
-    }
-
-    function toggleSelect(index) {
-        if(selectedCards.includes(index)) {
-            selectedCards = selectedCards.filter(i => i !== index);
-        } else {
-            selectedCards.push(index);
+    function handleData(data) {
+        if(data.type === 'START') {
+            myHand = data.hand;
+            deck = data.deck;
+            mode = data.mode;
+            currentTurn = data.turn;
+            if(mode === '9') document.getElementById('btn-draw').style.display = 'inline-block';
+        } else if(data.type === 'PLAY') {
+            tableCards = data.cards;
+            currentTurn = true;
+            renderTable();
+        } else if(data.type === 'SKIP') {
+            currentTurn = true;
+            tableCards = []; // Reset bàn nếu người kia bỏ lượt
+            renderTable();
+        } else if(data.type === 'DRAW') {
+            deck = data.deck;
         }
-        renderHand();
+        updateUI();
+    }
+
+    // LOGIC KIỂM TRA BÀI
+    function validateMove(cards) {
+        cards.sort((a,b) => a.val - b.val || a.suit - b.suit);
+        const len = cards.length;
+        let type = 'invalid', power = cards[len-1].val * 10 + cards[len-1].suit;
+
+        if(len === 1) type = 'single';
+        else if(len === 2 && cards[0].val === cards[1].val) type = 'pair';
+        else if(len === 3 && cards[0].val === cards[1].val && cards[1].val === cards[2].val) type = 'triple';
+        else if(len === 4 && cards[0].val === cards[3].val) type = 'quad';
+        else {
+            // Kiểm tra sảnh (dây)
+            let isStraight = true;
+            for(let i=0; i<len-1; i++) {
+                if(cards[i+1].val !== cards[i].val + 1 || cards[i+1].val === 12) isStraight = false; 
+            }
+            if(isStraight && len >= 3) type = 'straight';
+        }
+
+        if(tableCards.length === 0) return type !== 'invalid';
+        
+        // So sánh với bài trên bàn
+        let tableLen = tableCards.length;
+        tableCards.sort((a,b) => a.val - b.val || a.suit - b.suit);
+        let tablePower = tableCards[tableLen-1].val * 10 + tableCards[tableLen-1].suit;
+
+        if(type === 'invalid' || len !== tableLen) return false;
+        return power > tablePower;
     }
 
     function playSelected() {
-        if(selectedCards.length === 0) return alert("Chọn bài để đánh!");
+        if(!currentTurn) return alert("Chưa đến lượt!");
+        let selected = selectedIndexes.map(i => myHand[i]);
         
-        let played = selectedCards.map(i => myHand[i]);
-        // Xóa bài khỏi tay
-        myHand = myHand.filter((_, i) => !selectedCards.includes(i));
-        selectedCards = [];
-        
-        renderHand();
-        showLastMove(played);
-        conn.send({ type: 'PLAY', cards: played });
-    }
-
-    function showLastMove(cards) {
-        const area = document.getElementById('last-move');
-        area.innerHTML = '';
-        cards.forEach(card => {
-            const div = document.createElement('div');
-            div.className = `card ${card.color}`;
-            div.innerHTML = `<div>${card.v}</div><div>${card.s}</div>`;
-            area.appendChild(div);
-        });
+        if(validateMove(selected)) {
+            myHand = myHand.filter((_, i) => !selectedIndexes.includes(i));
+            tableCards = selected;
+            selectedIndexes = [];
+            currentTurn = false;
+            conn.send({ type: 'PLAY', cards: selected });
+            updateUI();
+            renderTable();
+        } else {
+            alert("Bài không hợp lệ hoặc không đủ mạnh!");
+        }
     }
 
     function drawCard() {
-        alert("Tính năng bốc bài đang được đồng bộ...");
+        if(!currentTurn || mode !== '9' || deck.length === 0) return;
+        let newCard = deck.shift();
+        myHand.push(newCard);
+        myHand.sort((a,b) => a.val - b.val || a.suit - b.suit);
+        conn.send({ type: 'DRAW', deck });
+        updateUI();
     }
 
     function skipTurn() {
-        alert("Bạn đã bỏ lượt");
+        if(!currentTurn) return;
+        currentTurn = false;
+        tableCards = [];
+        conn.send({ type: 'SKIP' });
+        updateUI();
+    }
+
+    function updateUI() {
+        const handDiv = document.getElementById('my-hand');
+        handDiv.innerHTML = '';
+        myHand.forEach((c, i) => {
+            const div = document.createElement('div');
+            div.className = `card ${c.color} ${selectedIndexes.includes(i) ? 'selected' : ''}`;
+            div.innerHTML = `<span>${c.v}</span><span>${c.s}</span>`;
+            div.onclick = () => {
+                if(selectedIndexes.includes(i)) selectedIndexes = selectedIndexes.filter(idx => idx !== i);
+                else selectedIndexes.push(i);
+                updateUI();
+            };
+            handDiv.appendChild(div);
+        });
+        document.getElementById('turn-info').innerText = currentTurn ? "LƯỢT CỦA BẠN" : "ĐỐI THỦ ĐANG ĐÁNH...";
+        document.getElementById('deck-info').innerText = `Nọc: ${deck.length} lá`;
+    }
+
+    function renderTable() {
+        const tableDiv = document.getElementById('last-move');
+        tableDiv.innerHTML = '';
+        tableCards.forEach(c => {
+            const div = document.createElement('div');
+            div.className = `card ${c.color}`;
+            div.innerHTML = `<span>${c.v}</span><span>${c.s}</span>`;
+            tableDiv.appendChild(div);
+        });
     }
 </script>
 </body>
