@@ -3,103 +3,199 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tiến Lên P2P Online</title>
+    <title>Tiến Lên Multi-Mode Online</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        body { font-family: sans-serif; background: #1a472a; color: white; text-align: center; margin: 0; padding: 20px; }
-        .box { background: rgba(0,0,0,0.3); padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; }
-        input { width: 80%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; text-align: center; }
-        button { width: 85%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
-        .btn-host { background: #27ae60; color: white; }
-        .btn-join { background: #2980b9; color: white; }
-        #game-ui { display: none; }
-        .card-table { height: 150px; border: 2px dashed #fff; margin: 20px 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-        .my-id { font-size: 12px; color: #f1c40f; word-break: break-all; }
+        :root { --primary: #27ae60; --secondary: #2980b9; --bg: #1a472a; }
+        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); color: white; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        .setup-screen { padding: 20px; text-align: center; max-width: 400px; background: rgba(0,0,0,0.4); border-radius: 15px; margin-top: 50px; }
+        
+        /* Bài viết */
+        .card { width: 60px; height: 90px; background: white; color: black; border-radius: 5px; display: inline-flex; flex-direction: column; align-items: center; justify-content: center; font-weight: bold; cursor: pointer; border: 2px solid transparent; margin: 2px; user-select: none; position: relative; transition: transform 0.2s; }
+        .card.red { color: red; }
+        .card.selected { border-color: #f1c40f; transform: translateY(-15px); box-shadow: 0 5px 15px rgba(0,0,0,0.5); }
+        
+        .game-container { display: none; width: 100%; max-width: 800px; height: 100vh; flex-direction: column; justify-content: space-between; }
+        .table-area { flex-grow: 1; border: 2px dashed rgba(255,255,255,0.2); border-radius: 50%; margin: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        .hand-area { background: rgba(0,0,0,0.5); padding: 15px; width: 100%; box-sizing: border-box; text-align: center; }
+        
+        .controls { margin-top: 10px; display: flex; justify-content: center; gap: 10px; }
+        button { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-play { background: #e67e22; color: white; }
+        .btn-skip { background: #95a5a6; color: white; }
+        
+        .mode-tag { position: absolute; top: 10px; right: 10px; background: #f1c40f; color: black; padding: 5px 10px; border-radius: 5px; font-size: 12px; }
+        .id-text { font-size: 12px; color: #ccc; word-break: break-all; margin: 10px 0; }
     </style>
 </head>
 <body>
 
-<div class="box" id="lobby">
-    <h1>TIẾN LÊN P2P</h1>
-    
-    <div id="setup-host">
-        <button class="btn-host" onclick="startHost()">TẠO PHÒNG (Chủ phòng)</button>
-        <p class="my-id" id="display-id"></p>
+<div id="setup" class="setup-screen">
+    <h2>TIẾN LÊN KẾT NỐI</h2>
+    <div id="host-view">
+        <button class="btn-play" style="background: var(--primary)" onclick="initPeer(true)">TẠO PHÒNG</button>
+        <p class="id-text" id="my-id"></p>
+        <div id="mode-select" style="margin-top:10px">
+            <label><input type="radio" name="rule" value="MN" checked> Miền Nam</label>
+            <label><input type="radio" name="rule" value="MB"> Miền Bắc</label>
+            <br><br>
+            <label><input type="radio" name="gameMode" value="ALL" checked> Chia hết (13 lá)</label>
+            <label><input type="radio" name="gameMode" value="9"> Chia 9 (Bốc bài)</label>
+        </div>
     </div>
-
     <hr>
-
-    <div id="setup-join">
-        <input type="text" id="join-id" placeholder="Dán ID của bạn bè vào đây">
-        <button class="btn-join" onclick="startJoin()">VÀO PHÒNG</button>
+    <div id="join-view">
+        <input type="text" id="target-id" placeholder="Nhập ID phòng bạn bè">
+        <button class="btn-play" style="background: var(--secondary)" onclick="initPeer(false)">VÀO PHÒNG</button>
     </div>
 </div>
 
-<div id="game-ui">
-    <h2 id="status">Đang chờ kết nối...</h2>
-    <div class="card-table" id="table">Bàn bài trống</div>
-    <div id="cards">Bài của bạn: [3 Bích, 5 Rô, A Cơ]</div>
-    <button onclick="sendMove()" style="background: #e67e22; margin-top: 20px;">ĐÁNH BÀI</button>
+<div id="game" class="game-container">
+    <div class="table-area" id="table">
+        <div id="room-mode" class="mode-tag">Đang đợi...</div>
+        <div id="last-move"></div>
+    </div>
+    
+    <div class="hand-area">
+        <div id="my-hand"></div>
+        <div class="controls">
+            <button id="btn-draw" class="btn-skip" style="display:none" onclick="drawCard()">BỐC BÀI</button>
+            <button class="btn-skip" onclick="skipTurn()">BỎ LƯỢT</button>
+            <button class="btn-play" onclick="playSelected()">ĐÁNH BÀI</button>
+        </div>
+    </div>
 </div>
 
 <script>
-    let peer;
-    let conn;
+    let peer, conn, myId, connections = [];
+    let myHand = [];
+    let selectedCards = [];
+    let isHost = false;
+    let gameSettings = { rule: 'MN', mode: 'ALL' };
 
-    // 1. Hàm tạo phòng (Dành cho máy chủ)
-    function startHost() {
-        peer = new Peer(); // Tạo một ID ngẫu nhiên trên hệ thống PeerJS
-        
-        peer.on('open', (id) => {
-            document.getElementById('display-id').innerText = "Gửi ID này cho bạn bè: " + id;
-            document.getElementById('status').innerText = "Đợi bạn bè vào...";
-        });
+    const SUITS = ['♠', '♣', '♦', '♥'];
+    const VALUES = ['3','4','5','6','7','8','9','10','J','Q','K','A','2'];
 
-        peer.on('connection', (connection) => {
-            conn = connection;
-            setupChat();
-            showGame();
-        });
-    }
-
-    // 2. Hàm vào phòng (Dành cho máy khách/điện thoại)
-    function startJoin() {
-        const targetId = document.getElementById('join-id').value;
-        if (!targetId) return alert("Vui lòng nhập ID!");
-
+    // 1. Khởi tạo Peer
+    function initPeer(host) {
+        isHost = host;
         peer = new Peer();
-        peer.on('open', () => {
-            conn = peer.connect(targetId);
-            setupChat();
-            showGame();
+        
+        peer.on('open', id => {
+            myId = id;
+            if(isHost) {
+                document.getElementById('my-id').innerText = "ID PHÒNG: " + id;
+                gameSettings.rule = document.querySelector('input[name="rule"]:checked').value;
+                gameSettings.mode = document.querySelector('input[name="gameMode"]:checked').value;
+            } else {
+                const target = document.getElementById('target-id').value;
+                connectToHost(target);
+            }
+        });
+
+        peer.on('connection', c => {
+            conn = c;
+            handleConnection(c);
         });
     }
 
-    // 3. Xử lý nhận/gửi dữ liệu
-    function setupChat() {
-        conn.on('open', () => {
-            document.getElementById('status').innerText = "Đã kết nối với đối thủ!";
+    function connectToHost(id) {
+        conn = peer.connect(id);
+        handleConnection(conn);
+    }
+
+    function handleConnection(c) {
+        c.on('open', () => {
+            document.getElementById('setup').style.display = 'none';
+            document.getElementById('game').style.display = 'flex';
+            document.getElementById('room-mode').innerText = `${gameSettings.rule} | ${gameSettings.mode == 'ALL' ? 'Chia hết' : 'Chia 9'}`;
+            
+            if(isHost) startGame();
         });
 
-        conn.on('data', (data) => {
-            // Khi nhận được bài từ bên kia đánh qua
-            document.getElementById('table').innerText = "Đối thủ đánh: " + data;
+        c.on('data', data => {
+            if(data.type === 'START') {
+                myHand = data.hand;
+                gameSettings = data.settings;
+                renderHand();
+            }
+            if(data.type === 'PLAY') {
+                showLastMove(data.cards);
+            }
         });
     }
 
-    function sendMove() {
-        const move = "Heo Cơ (2♥)";
-        document.getElementById('table').innerText = "Bạn đánh: " + move;
-        if (conn && conn.open) {
-            conn.send(move); // Gửi dữ liệu trực tiếp sang máy kia
+    // 2. Logic Game
+    function startGame() {
+        // Tạo bộ bài đơn giản
+        let deck = [];
+        for(let v of VALUES) for(let s of SUITS) deck.push({v, s, color: (s === '♦' || s === '♥') ? 'red' : ''});
+        deck.sort(() => Math.random() - 0.5);
+
+        // Chia bài
+        const count = gameSettings.mode === 'ALL' ? 13 : 9;
+        const hostHand = deck.splice(0, count);
+        const guestHand = deck.splice(0, count);
+
+        myHand = hostHand;
+        renderHand();
+
+        conn.send({ type: 'START', hand: guestHand, settings: gameSettings });
+        if(gameSettings.mode === '9') document.getElementById('btn-draw').style.display = 'inline-block';
+    }
+
+    function renderHand() {
+        const container = document.getElementById('my-hand');
+        container.innerHTML = '';
+        myHand.forEach((card, index) => {
+            const div = document.createElement('div');
+            div.className = `card ${card.color} ${selectedCards.includes(index) ? 'selected' : ''}`;
+            div.innerHTML = `<div>${card.v}</div><div>${card.s}</div>`;
+            div.onclick = () => toggleSelect(index);
+            container.appendChild(div);
+        });
+    }
+
+    function toggleSelect(index) {
+        if(selectedCards.includes(index)) {
+            selectedCards = selectedCards.filter(i => i !== index);
+        } else {
+            selectedCards.push(index);
         }
+        renderHand();
     }
 
-    function showGame() {
-        document.getElementById('lobby').style.display = 'none';
-        document.getElementById('game-ui').style.display = 'block';
+    function playSelected() {
+        if(selectedCards.length === 0) return alert("Chọn bài để đánh!");
+        
+        let played = selectedCards.map(i => myHand[i]);
+        // Xóa bài khỏi tay
+        myHand = myHand.filter((_, i) => !selectedCards.includes(i));
+        selectedCards = [];
+        
+        renderHand();
+        showLastMove(played);
+        conn.send({ type: 'PLAY', cards: played });
+    }
+
+    function showLastMove(cards) {
+        const area = document.getElementById('last-move');
+        area.innerHTML = '';
+        cards.forEach(card => {
+            const div = document.createElement('div');
+            div.className = `card ${card.color}`;
+            div.innerHTML = `<div>${card.v}</div><div>${card.s}</div>`;
+            area.appendChild(div);
+        });
+    }
+
+    function drawCard() {
+        alert("Tính năng bốc bài đang được đồng bộ...");
+    }
+
+    function skipTurn() {
+        alert("Bạn đã bỏ lượt");
     }
 </script>
-
 </body>
 </html>
