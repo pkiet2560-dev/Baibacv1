@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tiến Lên P2P Online</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #1a472a; color: white; text-align: center; margin: 0; padding: 20px; }
+        .box { background: rgba(0,0,0,0.3); padding: 20px; border-radius: 15px; max-width: 400px; margin: auto; }
+        input { width: 80%; padding: 10px; margin: 10px 0; border-radius: 5px; border: none; text-align: center; }
+        button { width: 85%; padding: 15px; margin: 10px 0; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .btn-host { background: #27ae60; color: white; }
+        .btn-join { background: #2980b9; color: white; }
+        #game-ui { display: none; }
+        .card-table { height: 150px; border: 2px dashed #fff; margin: 20px 0; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+        .my-id { font-size: 12px; color: #f1c40f; word-break: break-all; }
+    </style>
+</head>
+<body>
+
+<div class="box" id="lobby">
+    <h1>TIẾN LÊN P2P</h1>
+    
+    <div id="setup-host">
+        <button class="btn-host" onclick="startHost()">TẠO PHÒNG (Chủ phòng)</button>
+        <p class="my-id" id="display-id"></p>
+    </div>
+
+    <hr>
+
+    <div id="setup-join">
+        <input type="text" id="join-id" placeholder="Dán ID của bạn bè vào đây">
+        <button class="btn-join" onclick="startJoin()">VÀO PHÒNG</button>
+    </div>
+</div>
+
+<div id="game-ui">
+    <h2 id="status">Đang chờ kết nối...</h2>
+    <div class="card-table" id="table">Bàn bài trống</div>
+    <div id="cards">Bài của bạn: [3 Bích, 5 Rô, A Cơ]</div>
+    <button onclick="sendMove()" style="background: #e67e22; margin-top: 20px;">ĐÁNH BÀI</button>
+</div>
+
+<script>
+    let peer;
+    let conn;
+
+    // 1. Hàm tạo phòng (Dành cho máy chủ)
+    function startHost() {
+        peer = new Peer(); // Tạo một ID ngẫu nhiên trên hệ thống PeerJS
+        
+        peer.on('open', (id) => {
+            document.getElementById('display-id').innerText = "Gửi ID này cho bạn bè: " + id;
+            document.getElementById('status').innerText = "Đợi bạn bè vào...";
+        });
+
+        peer.on('connection', (connection) => {
+            conn = connection;
+            setupChat();
+            showGame();
+        });
+    }
+
+    // 2. Hàm vào phòng (Dành cho máy khách/điện thoại)
+    function startJoin() {
+        const targetId = document.getElementById('join-id').value;
+        if (!targetId) return alert("Vui lòng nhập ID!");
+
+        peer = new Peer();
+        peer.on('open', () => {
+            conn = peer.connect(targetId);
+            setupChat();
+            showGame();
+        });
+    }
+
+    // 3. Xử lý nhận/gửi dữ liệu
+    function setupChat() {
+        conn.on('open', () => {
+            document.getElementById('status').innerText = "Đã kết nối với đối thủ!";
+        });
+
+        conn.on('data', (data) => {
+            // Khi nhận được bài từ bên kia đánh qua
+            document.getElementById('table').innerText = "Đối thủ đánh: " + data;
+        });
+    }
+
+    function sendMove() {
+        const move = "Heo Cơ (2♥)";
+        document.getElementById('table').innerText = "Bạn đánh: " + move;
+        if (conn && conn.open) {
+            conn.send(move); // Gửi dữ liệu trực tiếp sang máy kia
+        }
+    }
+
+    function showGame() {
+        document.getElementById('lobby').style.display = 'none';
+        document.getElementById('game-ui').style.display = 'block';
+    }
+</script>
+
+</body>
+</html>
